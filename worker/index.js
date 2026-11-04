@@ -4,6 +4,7 @@ import { makePayPal } from '../lib/paypal.js';
 import { MILESTONES } from '../agent/policy.js';
 import { decide, overdue } from '../lib/backer-agent.js';
 import { playtest } from './playtest.js';
+import { serveStatic } from './static.js';
 
 const DUE_DAYS = [14, 28, 42];
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -174,6 +175,6 @@ export default {
       try { return await handler(c, req, url, m.slice(1), env); }
       catch (e) { return json({ error: e.message }, 500); }
     }
-    return env.ASSETS.fetch(req);
+    return serveStatic(url);
   },
 };

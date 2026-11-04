@@ -3,9 +3,13 @@ main = "worker/index.js"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
-[assets]
-directory = "./public"
-binding = "ASSETS"
+[build]
+command = "cp public/games/boss-rush/game.js public/games/boss-rush/game.js.txt"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html", "**/*.txt"]
+fallthrough = false
 
 [browser]
 binding = "BROWSER"
@@ -13,9 +17,10 @@ binding = "BROWSER"
 [[d1_databases]]
 binding = "DB"
 database_name = "playable-promise"
-database_id = "REPLACE_WITH_D1_ID"
+database_id = "07680fac-4830-4270-bd8a-d6a2b72580c4"
 
 [vars]
 PAYPAL_CLIENT_ID = "BAAv7lk2FIs0yAJIQUDYTZKTl7o-hdO2p4HqkF2tQJD_dvDCgvx9Ftj2Fk-DmCx6f469bDm47bc7-IK9jo"
 CREATOR_EMAIL = "creator@playable-promise.example"
+PUBLIC_URL = "https://playable-promise.springs345.workers.dev"
 # Secrets (wrangler secret put): PAYPAL_CLIENT_SECRET, GEMINI_API_KEY
