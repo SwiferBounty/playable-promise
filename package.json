@@ -1,0 +1,15 @@
+{
+  "name": "playable-promise",
+  "version": "0.1.0",
+  "description": "Game pre-orders charged one milestone at a time, only when an AI playtest agent verifies the build.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "start": "node --no-warnings server.js",
+    "playtest": "node --no-warnings agent/playtest.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "playwright": "^1.48.0"
+  }
+}
