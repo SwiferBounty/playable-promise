@@ -20,7 +20,7 @@
   };
 
   function startBoss() {
-    g.scene = 'boss'; g.player.x = 20; g.shots = [];
+    g.scene = 'boss'; g.player.x = 20; g.player.hp = 5; g.shots = []; // checkpoint: full health for the boss
     g.boss = { x: 560, hp: 30, phase: 1, cd: 60 };
   }
 
@@ -39,7 +39,7 @@
       for (const s of g.slimes) {
         if (s.hp <= 0) continue;
         if (attacking && s.x - p.x > -16 && s.x - p.x < 44) s.hp--;
-        if (Math.abs(s.x - p.x) < 14 && p.y > FLOOR - 10) hurt();
+        if (Math.abs(s.x - p.x) < 8 && p.y > FLOOR - 10 && p.inv === 0) { hurt(); p.x = Math.max(0, p.x + (p.x < s.x ? -24 : 24)); } // bump: hurt and knocked back
       }
       if (p.x >= DOOR && g.slimes.every(s => s.hp <= 0)) {
         if (HAS_BOSS) startBoss(); else g.scene = 'level1-clear';
@@ -48,24 +48,26 @@
     } else if (g.scene === 'boss') {
       const b = g.boss;
       const floorHp = HAS_PHASE3 ? 0 : 10; // m2 build: boss can't be pushed past phase 2
-      if (attacking && b.x - p.x > -20 && b.x - p.x < 56) b.hp = Math.max(floorHp, b.hp - 1);
+      if (attacking && b.x - p.x > -20 && b.x - p.x < 72) b.hp = Math.max(floorHp, b.hp - 1);
+      const was = b.phase;
       b.phase = b.hp > 20 ? 1 : b.hp > 10 ? 2 : 3;
+      if (b.phase > was) p.hp = Math.min(5, p.hp + 1); // the King staggers and drops a heart
       if (b.phase === 3 && BUILD === 'm3-broken') {
         // The planted regression: phase 3 reads an attack table that was never added.
         const pattern = undefined; pattern.next();
       }
-      if (--b.cd <= 0) { g.shots.push({ x: b.x - 10, vx: -(3 + b.phase), y: FLOOR }); b.cd = 70 - b.phase * 15; }
+      if (--b.cd <= 0) { g.shots.push({ x: b.x - 10, vx: -(2.5 + b.phase * 0.5), y: FLOOR }); b.cd = 100 - b.phase * 15; }
       for (const s of g.shots) s.x += s.vx;
       g.shots = g.shots.filter(s => s.x > -10);
       for (const s of g.shots) if (Math.abs(s.x - p.x) < 10 && p.y > FLOOR - 12) { hurt(); s.x = -99; }
-      if (Math.abs(b.x - p.x) < 20) { hurt(); p.x = Math.max(0, p.x - 30); }
+      if (Math.abs(b.x - p.x) < 14) { hurt(); p.x = Math.max(0, p.x - 30); }
       if (LIAR) b.hp = Math.max(10, b.hp); // phase 3 never actually finishes
       if (b.hp <= 0) g.ending = true;
     }
     if (p.hp <= 0) g.gameOver = true;
     return snapshot();
   }
-  function hurt() { const p = g.player; if (p.inv === 0) { p.hp--; p.inv = 40; } }
+  function hurt() { const p = g.player; if (p.inv === 0) { p.hp--; p.inv = 60; } }
 
   function snapshot() {
     const p = g.player, b = g.boss;

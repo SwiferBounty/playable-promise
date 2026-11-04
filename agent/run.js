@@ -103,8 +103,23 @@ export async function runPlaytest(page, { buildUrl, milestone, promises, key, ai
           for (const k of keys) await page.up(k);
         },
       };
-      agent = await pilot(driver, { promise, key, maxTurns: maxTurns || (10 + milestone * 10), onEvent: emit, snap });
-      say(`Pilot played ${agent.turns} turns (${agent.steps} moves)${agent.stoppedByAgent ? ' and stopped on its own' : ''}`);
+      // Like a human tester, the pilot gets up to 3 attempts. After a game over it reloads and
+      // carries a lesson from how it died into the next attempt. The judge sees the last attempt.
+      const lessons = [];
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        if (attempt > 1) {
+          say(`Attempt ${attempt}: reloading the build and trying again`);
+          emit({ type: 'attempt', attempt });
+          frames.length = 0; frameNo.n = 0;
+          await page.goto(buildUrl); await page.evaluate(() => window.__clock.advance(30)); await findClip();
+          await snap(`attempt ${attempt} start`);
+        }
+        agent = await pilot(driver, { promise, key, maxTurns: maxTurns || (10 + milestone * 10), onEvent: e => emit({ ...e, attempt }), snap, lessons });
+        say(`Attempt ${attempt}: pilot played ${agent.turns} turns (${agent.steps} moves), ${agent.outcome}`);
+        agent.attempts = attempt;
+        if (agent.outcome !== 'game_over') break;
+        lessons.push(`it ended in game over. Last thing seen: ${agent.lastSeen}`);
+      }
       state = await readState();
       const errs = await page.evaluate(() => window.__clock.errors.slice()).catch(() => []);
       if (errs.length) { crashed = errs[0]; say(`page error: ${errs[0]}`); }
