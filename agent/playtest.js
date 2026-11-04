@@ -61,7 +61,12 @@ export async function playtest(buildUrl, milestone, { maxSteps = 4000, outDir = 
   const telemetryPass = telemetry.every(t => t.reported) && !crashed;
 
   // The eyes: the AI judges the promise from the screenshots alone.
-  const promise = (promises || MILESTONES).filter(m => m.n <= milestone).map(m => `M${m.n}: ${m.test}`).join(' AND ');
+  // Judge this milestone's promise. Earlier milestones were already verified from their own runs;
+  // here the agent replays them only to reach this one (a crash on the way still fails the run).
+  const list = promises || MILESTONES;
+  const current = list.find(m => m.n === milestone);
+  const promise = `M${milestone}: ${current.test}` + (milestone > 1
+    ? ` (Earlier milestones, already verified separately, are replayed first to reach this point: ${list.filter(m => m.n < milestone).map(m => `M${m.n}: ${m.test}`).join('; ')}. Judge only M${milestone}; enemies or scenes from later stages are expected.)` : '');
   let ai = null, aiError = null;
   if (geminiEnabled()) {
     try {

@@ -4,9 +4,17 @@ import puppeteer from '@cloudflare/puppeteer';
 import { MILESTONES, policy } from '../agent/policy.js';
 import { planChecks, judgeFrames } from '../agent/judge.js';
 
+// Free plan limits how fast new browsers start; wait and retry instead of failing the run.
+async function launch(env) {
+  for (let attempt = 0; ; attempt++) {
+    try { return await puppeteer.launch(env.BROWSER); }
+    catch (e) { if (!/429|rate limit/i.test(e.message) || attempt >= 4) throw e; await new Promise(r => setTimeout(r, 15000)); }
+  }
+}
+
 export async function playtest(env, buildUrl, milestone, { maxSteps = 4000, promises } = {}) {
   const runId = `m${milestone}-${Date.now()}`;
-  const browser = await puppeteer.launch(env.BROWSER);
+  const browser = await launch(env);
   const log = [], frames = [];
   const t0 = Date.now();
   let state, crashed = null;
@@ -50,7 +58,12 @@ export async function playtest(env, buildUrl, milestone, { maxSteps = 4000, prom
   const telemetry = MILESTONES.filter(m => m.n <= milestone).map(m => ({ milestone: m.n, reported: !!passedAt[m.n] }));
   const telemetryPass = telemetry.every(t => t.reported) && !crashed;
 
-  const promise = (promises || MILESTONES).filter(m => m.n <= milestone).map(m => `M${m.n}: ${m.test}`).join(' AND ');
+  // Judge this milestone's promise. Earlier milestones were already verified from their own runs;
+  // here the agent replays them only to reach this one (a crash on the way still fails the run).
+  const list = promises || MILESTONES;
+  const current = list.find(m => m.n === milestone);
+  const promise = `M${milestone}: ${current.test}` + (milestone > 1
+    ? ` (Earlier milestones, already verified separately, are replayed first to reach this point: ${list.filter(m => m.n < milestone).map(m => `M${m.n}: ${m.test}`).join('; ')}. Judge only M${milestone}; enemies or scenes from later stages are expected.)` : '');
   let ai = null, aiError = null;
   if (env.GEMINI_API_KEY && env.GEMINI_DISABLED !== '1') {
     try {
@@ -60,7 +73,9 @@ export async function playtest(env, buildUrl, milestone, { maxSteps = 4000, prom
       ai = { checks: checks.map(c => ({ ...c, ...(j.checks.find(x => x.id === c.id) || { met: false, why: 'not judged' }) })), kept: j.kept, summary: j.summary };
     } catch (e) { aiError = e.message; log.push(`AI judge unavailable: ${e.message}`); }
   } else aiError = 'GEMINI_API_KEY not set';
-  const passed = ai ? ai.kept && !crashed : telemetryPass;
+  // With the AI judge configured but unreachable, never pay on the build's word: hold until it can look.
+  const aiRequired = !!env.GEMINI_API_KEY && env.GEMINI_DISABLED !== '1';
+  const passed = ai ? ai.kept && !crashed : (!aiRequired && telemetryPass);
   const tamper = ai && telemetryPass && !ai.kept;
   const verdict = crashed
     ? `Promise broken: the build crashed at tick ${state?.tick} (${crashed}). Backers are not charged.`
@@ -68,6 +83,7 @@ export async function playtest(env, buildUrl, milestone, { maxSteps = 4000, prom
       ? `Promise NOT kept. The build reported success, but the screen shows otherwise: ${ai.summary} Backers are not charged.`
       : passed
         ? `Promise kept: ${ai ? ai.summary : 'all acceptance tests passed (AI judge offline, telemetry only).'}`
+        : !ai && aiRequired ? `On hold: the AI judge could not look at this build (${aiError}). Nobody is charged on the build's own word. Submit it again.`
         : `Promise not kept: ${ai ? ai.summary : 'acceptance tests failed.'} Backers are not charged.`;
   return { runId, buildUrl, milestone, promise, passed, tamper: !!tamper, verdict, ai, aiError, telemetry, log, crashed,
     frames, screenshot: frames.at(-1)?.file, finalState: state, ms: Date.now() - t0 };
