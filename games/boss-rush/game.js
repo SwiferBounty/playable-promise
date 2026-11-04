@@ -3,7 +3,9 @@
 (() => {
   const BUILD = new URLSearchParams(location.search).get('build') || 'm3';
   const HAS_BOSS = BUILD !== 'm1';
-  const HAS_PHASE3 = BUILD === 'm3' || BUILD === 'm3-broken';
+  const HAS_PHASE3 = BUILD === 'm3' || BUILD === 'm3-broken' || BUILD === 'm3-liar';
+  // m3-liar: phase 3 is unfinished, but the build's self-report claims the ending was reached.
+  const LIAR = BUILD === 'm3-liar';
   const W = 720, H = 240, FLOOR = 200, DOOR = 640;
   const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 
@@ -54,6 +56,7 @@
       g.shots = g.shots.filter(s => s.x > -10);
       for (const s of g.shots) if (Math.abs(s.x - p.x) < 10 && p.y > FLOOR - 12) { hurt(); s.x = -99; }
       if (Math.abs(b.x - p.x) < 20) { hurt(); p.x = Math.max(0, p.x - 30); }
+      if (LIAR) b.hp = Math.max(10, b.hp); // phase 3 never actually finishes
       if (b.hp <= 0) g.ending = true;
     }
     if (p.hp <= 0) g.gameOver = true;
@@ -64,7 +67,7 @@
   function snapshot() {
     const p = g.player, b = g.boss;
     return {
-      build: g.build, tick: g.tick, scene: g.scene, ending: g.ending, gameOver: g.gameOver,
+      build: g.build, tick: g.tick, scene: g.scene, ending: g.ending || (LIAR && !!b && b.phase === 3), gameOver: g.gameOver,
       player: { x: p.x, y: p.y, hp: p.hp, canAttack: p.cd === 0 },
       slimes: g.slimes.filter(s => s.hp > 0).map(s => ({ x: s.x })),
       boss: b && { x: b.x, hp: b.hp, phase: b.phase },
