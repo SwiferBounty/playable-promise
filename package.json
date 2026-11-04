@@ -9,7 +9,11 @@
     "playtest": "node --no-warnings agent/playtest.js"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "^1.4.0",
     "express": "^4.21.2",
     "playwright": "^1.48.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.157.0"
   }
 }

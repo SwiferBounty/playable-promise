@@ -23,7 +23,7 @@ const note = (backerId, n, action, reason, runId = null) =>
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
-app.use('/games', express.static('games'));
+
 // Evidence page for one playtest run: the promise, the AI's checks, and every frame it judged.
 app.get('/runs/:id/', (req, res) => {
   const row = get(`SELECT json FROM runs WHERE id = ?`, req.params.id);
@@ -139,7 +139,7 @@ app.post('/api/milestones/:n/submit', async (req, res) => {
   for (let k = 1; k < n; k++) if (get(`SELECT status FROM milestones WHERE n = ?`, k).status !== 'verified')
     return res.status(409).json({ error: `Milestone ${k} must be verified first` });
   const build = String(req.body?.build || '');
-  const url = /^https?:\/\//.test(build) ? build : pathToFileURL(resolve('games/boss-rush/index.html')).href + `?build=${encodeURIComponent(build)}`;
+  const url = /^https?:\/\//.test(build) ? build : pathToFileURL(resolve('public/games/boss-rush/index.html')).href + `?build=${encodeURIComponent(build)}`;
   const r = await playtest(url, n, { promises: all(`SELECT n, test FROM milestones ORDER BY n`) });
   run(`INSERT INTO runs (id, milestone, build, passed, verdict, json) VALUES (?, ?, ?, ?, ?, ?)`, r.runId, n, build, r.passed ? 1 : 0, r.verdict, JSON.stringify(r));
   if (r.passed) {
