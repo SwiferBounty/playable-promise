@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Playtest replay · Playable Promise</title><link rel="stylesheet" href="/app.css"></head><body>
+<main>
+<h1 id="title">Playtest replay</h1>
+<p class="sub" id="promise"></p>
+<div class="grid2">
+ <div><div class="live"><div class="tag" id="tag"></div><img id="img" alt="Evidence frame"></div>
+  <div class="row" style="margin-top:8px"><button class="ghost" id="prev">◀</button><button id="play">▶ Replay</button><button class="ghost" id="next">▶</button><span class="sub" id="cap"></span></div>
+  <div id="strip" class="strip"></div></div>
+ <div><div id="verdict"></div><div id="checks" style="margin-top:10px"></div>
+  <div class="card"><h2>How the agent played</h2><div id="think" class="think"></div></div></div>
+</div>
+</main>
+<script type="module">
+import { $, esc, api, nav, checksHtml, verdictHtml } from '/app.js';
+nav('');
+const r = await api('/api/runs/' + encodeURIComponent(new URLSearchParams(location.search).get('id')));
+if (r.error) $('title').textContent = r.error;
+else {
+  $('title').textContent = `Milestone ${r.milestone || '(test)'} · ${r.build?.startsWith('http') ? 'custom game' : 'build ' + r.build}`;
+  $('promise').textContent = 'Promise: ' + r.promise;
+  $('verdict').innerHTML = verdictHtml(r); $('checks').innerHTML = checksHtml(r);
+  $('think').textContent = [...(r.agent?.history || []), ...r.log.filter(l => !/^turn /.test(l))].join('\n') || '(scripted run)';
+  let i = 0; const show = k => { i = (k + r.frames.length) % r.frames.length; const f = r.frames[i]; $('img').src = '/' + f.file; $('tag').textContent = `frame ${i + 1}/${r.frames.length}`; $('cap').textContent = f.label; };
+  $('strip').innerHTML = r.frames.map((f, k) => `<figure data-k="${k}"><img src="/${f.file}" alt=""><figcaption>${esc(f.label)}</figcaption></figure>`).join('');
+  $('strip').onclick = e => { const fig = e.target.closest('figure'); if (fig) show(+fig.dataset.k); };
+  $('prev').onclick = () => show(i - 1); $('next').onclick = () => show(i + 1);
+  let t = null; $('play').onclick = () => { if (t) { clearInterval(t); t = null; $('play').textContent = '▶ Replay'; return; } show(0); $('play').textContent = '❚❚ Pause'; t = setInterval(() => { if (i >= r.frames.length - 1) { clearInterval(t); t = null; $('play').textContent = '▶ Replay'; } else show(i + 1); }, 900); };
+  show(0);
+}
+</script></body></html>

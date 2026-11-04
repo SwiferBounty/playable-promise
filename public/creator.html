@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Creator · Playable Promise</title><link rel="stylesheet" href="/app.css"></head><body>
+<main>
+<h1>Creator dashboard</h1>
+<p class="sub">Ship a milestone build. Every backer's agent plays it from the screen and decides on its own whether you get paid.</p>
+<div class="grid3" id="ms"></div>
+
+<div class="card">
+ <h2>Ship a build</h2>
+ <div class="row">
+  <select id="mn"><option value="1">Milestone 1</option><option value="2">Milestone 2</option><option value="3">Milestone 3</option></select>
+  <select id="build"><option value="m1">build m1</option><option value="m2">build m2</option><option value="m3-broken">build m3 (crashes)</option><option value="m3-liar">build m3 (lies about progress)</option><option value="m3">build m3 (fixed)</option></select>
+  <button id="ship">Ship it: let the agents play</button>
+  <a id="preview" target="_blank" class="sub">play it yourself ↗</a>
+ </div>
+ <div class="grid2" style="margin-top:14px">
+  <div><div id="screen" class="live"><div class="tag">waiting for a build</div></div><div id="strip" class="strip"></div></div>
+  <div><div class="sub" style="margin-bottom:6px">The pilot's thinking, live</div><div id="think" class="think">Ship a build to watch the agent play.</div><div id="result"></div></div>
+ </div>
+</div>
+
+<div class="grid2">
+ <div class="card"><h2>Your payouts</h2><p class="sub">Sent with PayPal Payouts, only for milestones the agents verified.</p><div id="payouts" class="feed"></div></div>
+ <div class="card"><h2>Backers</h2><div id="backers" class="feed"></div></div>
+</div>
+<div class="card"><h2>Demo time machine</h2><div class="row"><button class="ghost" id="skip">Skip ahead 30 days</button><span class="sub" id="clock"></span></div><p class="sub">See what backers' agents do when a milestone goes overdue.</p></div>
+</main>
+<script type="module">
+import { $, esc, api, nav, milestoneCards, checksHtml, verdictHtml, liveRun } from '/app.js';
+nav('creator');
+async function load() {
+  const s = await api('/api/state');
+  $('ms').innerHTML = milestoneCards(s.milestones, s.today);
+  const next = s.milestones.find(m => m.status !== 'verified'); if (next) $('mn').value = next.n;
+  $('clock').textContent = `Today on the demo clock: ${s.today}`;
+  $('payouts').innerHTML = s.payouts.map(p => `<div class="item"><span class="ic">🏦</span><div><b>M${p.milestone}: $${p.amount}</b> to ${esc(s.creator)}<div class="sub">${esc(p.status)}${p.batch_id ? ' · batch ' + esc(p.batch_id) : ''}${p.error ? ' · ' + esc(p.error) : ''}</div></div></div>`).join('') || `<div class="sub">None yet. You get ${Math.round(s.share * 100)}% of each verified milestone.</div>`;
+  $('backers').innerHTML = s.backers.map(b => { const paid = s.charges.filter(c => c.backer_id === b.id && c.status === 'COMPLETED').length;
+    return `<div class="item"><span class="ic">🛡️</span><div><b>${esc(b.name)}</b> <span class="pill ${b.status === 'active' ? 'verified' : 'rejected'}">${esc(b.status.replace('_', ' '))}</span><div class="sub">paid ${paid} of 3 milestones</div></div></div>`; }).join('') || '<div class="sub">No backers yet.</div>';
+}
+const setPreview = () => $('preview').href = '/games/boss-rush/?build=' + $('build').value;
+$('build').onchange = setPreview; setPreview();
+$('ship').onclick = async () => {
+  $('ship').disabled = true; $('result').innerHTML = '';
+  await liveRun(`/api/milestones/${$('mn').value}/submit`, { build: $('build').value }, { screen: $('screen'), think: $('think'), strip: $('strip'),
+    onDone: d => {
+      if (d.error && !d.run) $('result').innerHTML = `<div class="verdict no">${esc(d.error)}</div>`;
+      else $('result').innerHTML = verdictHtml(d.run) + checksHtml(d.run)
+        + (d.decisions?.length ? `<div style="margin-top:8px">${d.decisions.map(x => `<div class="sub">• ${esc(x.name)}'s agent: ${esc(x.reason)}</div>`).join('')}</div>` : '')
+        + (d.payout ? `<div style="margin-top:8px">🏦 Payout: $${d.payout.amount} (${esc(d.payout.status)})</div>` : '')
+        + `<div style="margin-top:8px"><a href="/run.html?id=${d.run.runId}">replay and evidence →</a></div>`;
+      $('ship').disabled = false; load();
+    } });
+};
+$('skip').onclick = async () => { await api('/api/clock', { days: 30 }); load(); };
+load();
+</script></body></html>

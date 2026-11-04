@@ -1,83 +1,51 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Playable Promise: Boss Rush</title>
-<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/dist/ag-grid-community.min.js"></script>
-<style>
- body{margin:0;font:15px/1.5 system-ui;background:#0f0e17;color:#e8e6f0}
- main{max-width:980px;margin:auto;padding:24px}
- h1{margin:.2em 0}.sub{color:#a7a3b8}
- .card{background:#1a1826;border:1px solid #2c2940;border-radius:12px;padding:16px;margin:16px 0}
- .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
- input,select,button{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid #3a3655;background:#12111b;color:inherit}
- button{background:#7ee0c3;color:#0f0e17;border:0;font-weight:600;cursor:pointer}button:disabled{opacity:.5}
- .ms{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.ms .card{margin:0}
- .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;background:#2c2940}
- .verified{background:#1f5d4b}.rejected{background:#6b2335}
- #verdict{white-space:pre-wrap}iframe{width:100%;height:300px;border:0;border-radius:8px;background:#000}
- #grid{height:260px}#frames img{width:180px;border-radius:6px;border:1px solid #2c2940}.ok{color:#7ee0c3}.no{color:#ff7a90}
-</style></head><body><main>
-<h1>Playable Promise</h1>
-<p class="sub">Your money gets its own agent. Back <b>Boss Rush</b> for $30: your agent holds your PayPal, plays every milestone build itself, judges it from the screen with AI, and pays $10 only when the promise is kept. Miss a deadline and it walks away with your wallet.</p>
-<p class="sub" id="clock"></p>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Playable Promise: your money gets a bodyguard</title><link rel="stylesheet" href="/app.css"></head><body>
+<main>
+<p class="pill">Back a game · pay per promise kept</p>
+<h1>Your money gets a bodyguard.</h1>
+<p class="sub" style="font-size:18px;max-width:720px">Pre-order <b>Boss Rush</b> for $30 and you get your own AI agent. It holds your PayPal, plays every build the creator ships, and pays $10 only when it has watched that milestone working with its own eyes. If a deadline slips, it walks away and deletes your saved wallet.</p>
 
-<div class="card"><b>Back it</b> <span class="sub">(PayPal saves your wallet today; $0 charged now)</span>
- <div class="row" style="margin-top:8px"><input id="name" placeholder="Your name"><input id="email" placeholder="Email (optional)"><input id="cap" placeholder="Spend cap $ (optional)" size="16">
- <button id="pledge">Pre-order with PayPal</button></div><div id="pmsg" class="sub"></div></div>
+<div class="grid2">
+ <div class="card">
+  <h2>Back it</h2>
+  <p class="sub">PayPal saves your wallet today. $0 is charged now.</p>
+  <div class="row"><input id="name" placeholder="Your name" style="flex:1"><button id="pledge">Pre-order with PayPal</button></div>
+  <p class="sub" style="margin:10px 0 0">After PayPal, you'll meet your agent and tell it your rules in plain English.</p>
+  <div id="pmsg" class="sub"></div>
+ </div>
+ <div class="card">
+  <h2>How your agent decides</h2>
+  <div class="feed" style="max-height:none">
+   <div class="item"><span class="ic">🎮</span><div><b>It plays the build</b><div class="sub">An AI pilot plays from the screen, like a person would. It never reads the game's own code or claims.</div></div></div>
+   <div class="item"><span class="ic">🔎</span><div><b>A skeptical judge checks the evidence</b><div class="sub">A second AI holds the screenshots up against the creator's promise and your own conditions.</div></div></div>
+   <div class="item"><span class="ic">💸</span><div><b>Pays, or doesn't</b><div class="sub">Promise kept: it charges your saved PayPal and the creator gets paid out. Otherwise nothing moves, and you can see why.</div></div></div>
+  </div>
+ </div>
+</div>
 
-<div class="ms" id="ms"></div>
+<h2 style="margin-top:22px">The creator's promises</h2>
+<div class="grid3" id="ms"></div>
 
-<div class="card"><b>Creator: ship a milestone build</b>
- <div class="row" style="margin-top:8px">
-  <select id="mn"><option value="1">Milestone 1</option><option value="2">Milestone 2</option><option value="3">Milestone 3</option></select>
-  <select id="build"><option value="m1">build m1</option><option value="m2">build m2</option><option value="m3-broken">build m3 (crashes)</option><option value="m3-liar">build m3 (lies about progress)</option><option value="m3">build m3 (fixed)</option></select>
-  <button id="submit">Run playtest agent</button></div>
- <p id="verdict" class="sub"></p><div id="checks"></div><div id="frames" class="row"></div><iframe id="play" title="Build preview"></iframe></div>
-
-<div class="card"><b>What the agents decided</b> <span class="sub">every move, with its reason</span><div id="decisions" class="sub" style="margin-top:8px"></div>
- <div class="row" style="margin-top:8px"><button id="skip">Skip ahead 30 days</button><span class="sub">see what agents do when a deadline passes</span></div></div>
-<div class="card"><b>Creator payouts</b> <span class="sub">via PayPal Payouts, released only for verified milestones</span><div id="payouts" class="sub"></div></div>
-<div class="card"><b>Backer ledger</b> <span class="sub">every charge points to the playtest run that earned it</span><div id="grid" class="ag-theme-quartz-dark" style="margin-top:8px"></div></div>
+<div class="grid2">
+ <div class="card"><h2>Latest playtest</h2><div id="latest" class="sub">No builds shipped yet.</div></div>
+ <div class="card"><h2>What the agents decided</h2><div id="decisions" class="feed sub">No decisions yet.</div></div>
+</div>
 </main>
-<script>
-const $ = id => document.getElementById(id);
-let grid;
-async function refresh() {
-  const s = await (await fetch('/api/state')).json();
-  $('ms').innerHTML = s.milestones.map(m => `<div class="card"><span class="pill ${m.status}">${m.status}</span>
-    <h3 style="margin:.4em 0">M${m.n}: ${m.title}</h3><div class="sub">Test: ${m.test}</div><div>$${m.amount} per backer, due ${m.due}</div></div>`).join('');
-  $('clock').textContent = `Today (demo clock): ${s.today}`;
-  const icon = { pay: '💸', hold: '✋', walk: '🚪', join: '🤝' };
-  $('decisions').innerHTML = s.decisions.map(d => `<div>${icon[d.action] || ''} <b>${d.name}'s agent</b>: ${d.reason}</div>`).join('') || 'No decisions yet.';
-  $('payouts').innerHTML = s.payouts.map(p => `<div>M${p.milestone}: $${p.amount} to ${s.creator} (${p.status}${p.batch_id ? ', batch ' + p.batch_id : ''})</div>`).join('') || `None yet. Creator gets ${Math.round(s.share * 100)}% of each verified milestone.`;
-  const rows = s.backers.map(b => { const r = { backer: b.name, status: b.status };
-    for (const c of s.charges.filter(c => c.backer_id === b.id)) { r['m' + c.milestone] = c.status === 'COMPLETED' ? `$${c.amount} paid` : c.status; r['run' + c.milestone] = c.run_id; }
-    return r; });
-  const cols = [{ field: 'backer' }, { field: 'status' }, ...[1, 2, 3].map(n => ({ field: 'm' + n, headerName: 'M' + n,
-    cellRenderer: p => p.value ? `${p.value} <a href="/runs/${p.data['run' + n]}/" target="_blank">evidence</a>` : '—' }))];
-  if (!grid) grid = agGrid.createGrid($('grid'), { columnDefs: cols, rowData: rows, defaultColDef: { flex: 1 } });
-  else grid.setGridOption('rowData', rows);
-}
+<footer>PayPal sandbox demo · Gemini vision · Cloudflare Browser Run · <a href="https://github.com/SwiferBounty/playable-promise">source</a></footer>
+<script type="module">
+import { $, esc, api, nav, milestoneCards, checksHtml, verdictHtml, ICON } from '/app.js';
+nav('back');
+const s = await api('/api/state');
+$('ms').innerHTML = milestoneCards(s.milestones, s.today);
+const r = s.runs[0];
+if (r) $('latest').innerHTML = `<div class="sub">M${r.milestone} · build <b>${esc(r.build)}</b> · <a href="/run.html?id=${r.id}">watch the replay</a></div>
+  ${verdictHtml({ ...r, passed: !!r.passed })}${checksHtml(r)}<div class="strip">${(r.frames || []).slice(-4).map(f => `<figure><img src="/${f.file}" alt=""><figcaption>${esc(f.label)}</figcaption></figure>`).join('')}</div>`;
+$('decisions').innerHTML = s.decisions.map(d => `<div class="item"><span class="ic">${ICON[d.action] || '•'}</span><div><b>${esc(d.name)}'s agent</b><div class="sub">${esc(d.reason)}</div></div></div>`).join('') || 'No decisions yet.';
 $('pledge').onclick = async () => {
-  $('pmsg').textContent = 'Opening PayPal…';
-  const r = await (await fetch('/api/pledge', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: $('name').value, email: $('email').value, cap: $('cap').value }) })).json();
-  if (r.approveUrl) location.href = r.approveUrl; else $('pmsg').textContent = r.error;
+  $('pledge').disabled = true; $('pmsg').textContent = 'Opening PayPal…';
+  const j = await api('/api/pledge', { name: $('name').value || 'Backer' });
+  if (j.approveUrl) { localStorage.setItem('pp-agent', j.backerId); location.href = j.approveUrl; } else { $('pmsg').textContent = j.error; $('pledge').disabled = false; }
 };
-$('build').onchange = () => $('play').src = '/games/boss-rush/?build=' + $('build').value;
-$('submit').onclick = async () => {
-  $('submit').disabled = true; $('verdict').textContent = 'Agent is playing the build…';
-  const r = await (await fetch(`/api/milestones/${$('mn').value}/submit`, { method: 'POST',
-    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ build: $('build').value }) })).json();
-  $('verdict').textContent = r.error || [r.run.verdict, ...r.run.log].join('\n') + (r.charges.length ? `\nCharged ${r.charges.filter(c => c.status === 'COMPLETED').length} backer(s).` : '');
-  const run = r.run;
-  if (run) {
-    $('checks').innerHTML = run.ai ? run.ai.checks.map(c => `<div class="${c.met ? 'ok' : 'no'}">${c.met ? '✔' : '✘'} ${c.look_for} <span class="sub">${c.why}</span></div>`).join('')
-      + (run.tamper ? '<div class="no"><b>Tamper alarm:</b> the build said it passed. The screen said no.</div>' : '') : `<div class="sub">${run.aiError ? 'AI judge offline: ' + run.aiError : ''}</div>`;
-    $('frames').innerHTML = run.frames.map(f => `<figure style="margin:0"><img src="/${f.file}"><figcaption class="sub">tick ${f.tick}: ${f.label}</figcaption></figure>`).join('');
-  }
-  $('submit').disabled = false; refresh();
-};
-if (location.search.includes('pledged')) $('pmsg').textContent = 'You are in. Nothing charged until Milestone 1 is verified.';
-$('skip').onclick = async () => { await fetch('/api/clock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ days: 30 }) }); refresh(); };
-$('build').onchange(); refresh();
+if (location.search.includes('cancelled')) $('pmsg').textContent = 'PayPal was cancelled. Nothing was saved.';
 </script></body></html>

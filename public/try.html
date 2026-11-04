@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test any game · Playable Promise</title><link rel="stylesheet" href="/app.css"></head><body>
+<main>
+<h1>Test any game.</h1>
+<p class="sub" style="font-size:17px">Paste a link to any web game and write the promise in plain English. The agent has never seen it. It plays from the screen, then a skeptical judge decides whether the promise was kept. No money moves here.</p>
+<div class="card">
+ <div class="row"><input id="url" style="flex:2" placeholder="https://… a browser game (keyboard controls)"><input id="promise" style="flex:3" placeholder="The promise, e.g. 'You can reach level 2'"></div>
+ <div class="row" style="margin-top:10px"><button id="go">Let the agent play</button><button class="ghost" id="sample">Try it on Boss Rush</button></div>
+ <div class="grid2" style="margin-top:14px">
+  <div><div id="screen" class="live"><div class="tag">waiting</div></div><div id="strip" class="strip"></div></div>
+  <div><div class="sub" style="margin-bottom:6px">The pilot's thinking, live</div><div id="think" class="think">Paste a game to begin.</div><div id="result"></div></div>
+ </div>
+</div>
+</main>
+<script type="module">
+import { $, esc, nav, checksHtml, verdictHtml, liveRun } from '/app.js';
+nav('try');
+$('sample').onclick = () => { $('url').value = location.origin + '/games/boss-rush/?build=m1'; $('promise').value = 'Defeat every slime and walk through the door'; };
+$('go').onclick = async () => {
+  $('go').disabled = true; $('result').innerHTML = '';
+  await liveRun('/api/try', { url: $('url').value.trim(), promise: $('promise').value.trim() }, { screen: $('screen'), think: $('think'), strip: $('strip'),
+    onDone: d => { $('result').innerHTML = d.run ? verdictHtml(d.run) + checksHtml(d.run) + `<div style="margin-top:8px"><a href="/run.html?id=${d.run.runId}">replay and evidence →</a></div>` : `<div class="verdict no">${esc(d.error)}</div>`; $('go').disabled = false; } });
+};
+</script></body></html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My agent · Playable Promise</title><link rel="stylesheet" href="/app.css"></head><body>
+<main>
+<div id="welcome"></div>
+<h1 id="title">Your agent</h1>
+<div class="grid2">
+ <div class="card">
+  <h2>Talk to your agent</h2>
+  <div id="chat" class="chat"></div>
+  <form id="f" class="row" style="margin-top:10px"><input id="msg" style="flex:1" placeholder="e.g. Never spend more than $20. Only pay if the boss has a real ending screen."><button>Send</button></form>
+  <div class="row" style="margin-top:8px" id="chips"></div>
+ </div>
+ <div>
+  <div class="card"><h2>Its mandate</h2><div id="mandate"></div></div>
+  <div class="card"><h2>Money</h2><div class="row" style="gap:24px"><div><div class="kpi" id="spent">$0</div><div class="sub">paid to the creator</div></div><div><div class="kpi" id="held">$30</div><div class="sub">still protected</div></div></div></div>
+ </div>
+</div>
+<div class="card"><h2>Everything it did, and why</h2><div id="timeline" class="feed"></div></div>
+</main>
+<script type="module">
+import { $, esc, api, nav, ICON } from '/app.js';
+const id = new URLSearchParams(location.search).get('id') || localStorage.getItem('pp-agent');
+if (id) localStorage.setItem('pp-agent', id);
+nav('agent');
+const bubble = (role, text, run) => { $('chat').insertAdjacentHTML('beforeend', `<div class="bubble ${role}">${esc(text)}${run ? `<br><a href="/run.html?id=${run}">see what I saw →</a>` : ''}</div>`); $('chat').scrollTop = 1e9; };
+async function load() {
+  const s = await api('/api/agents/' + id);
+  if (s.error) { $('title').textContent = 'No agent here yet'; return; }
+  const b = s.backer;
+  $('title').textContent = `${b.name}'s agent`;
+  $('mandate').innerHTML = `<div>Status: <span class="pill ${b.status === 'active' ? 'verified' : 'rejected'}">${esc(b.status.replace('_', ' '))}</span></div>
+    <div style="margin-top:8px">💳 Holds your PayPal${b.payer_email ? ` (${esc(b.payer_email)})` : ''}</div>
+    <div>🎯 Pays $10 per milestone, only after watching it work</div>
+    <div>🧢 Spend cap: <b>${b.cap ? '$' + esc(b.cap) : 'none'}</b></div>
+    <div>📝 Your conditions: <b>${b.conditions ? esc(b.conditions) : 'none yet'}</b></div>
+    <div>🚪 Walks away if a milestone is overdue: ${s.milestones.map(m => `M${m.n} by ${m.due}`).join(', ')}</div>
+    ${b.walked_reason ? `<div class="tamper" style="margin-top:8px">${esc(b.walked_reason)}</div>` : ''}`;
+  const spent = s.charges.filter(c => c.status === 'COMPLETED').reduce((a, c) => a + Number(c.amount), 0);
+  $('spent').textContent = '$' + spent.toFixed(0); $('held').textContent = '$' + (b.status === 'active' ? 30 - spent : 0).toFixed(0);
+  $('timeline').innerHTML = s.decisions.map(d => `<div class="item"><span class="ic">${ICON[d.action] || '•'}</span><div><span class="pill ${d.action}">${d.action}</span> <span class="sub">${esc(d.created_at)} UTC</span><div>${esc(d.reason)}</div>${d.run_id ? `<a href="/run.html?id=${d.run_id}">evidence</a>` : ''}</div></div>`).join('') || '<div class="sub">Nothing yet. I will act the moment the creator ships a build.</div>';
+  $('chat').innerHTML = '';
+  if (!s.messages.length) bubble('agent', `Hi ${b.name}. I'm holding your PayPal for Boss Rush and I won't pay a cent until I've seen each milestone working myself. Any rules you want me to follow?`);
+  for (const m of s.messages) bubble(m.role, m.text, m.run_id);
+}
+$('f').onsubmit = async e => {
+  e.preventDefault(); const text = $('msg').value.trim(); if (!text) return;
+  $('msg').value = ''; bubble('backer', text); bubble('agent', '…');
+  const r = await api(`/api/agents/${id}/chat`, { message: text });
+  $('chat').lastElementChild.remove();
+  bubble('agent', r.error || r.reply, r.run_id);
+  if (r.changes?.length) setTimeout(load, 400);
+};
+['Never spend more than $20', 'Only pay if the boss fight has 3 phases', 'Why did you pay?', 'What happens if they miss a deadline?'].forEach(t => {
+  const b = document.createElement('button'); b.className = 'ghost'; b.textContent = t; b.onclick = () => { $('msg').value = t; $('f').requestSubmit(); }; $('chips').appendChild(b);
+});
+if (location.search.includes('pledged')) $('welcome').innerHTML = '<div class="card" style="border-color:#1f5d4b">✔ PayPal saved. Nothing charged until Milestone 1 is verified.</div>';
+load();
+</script></body></html>

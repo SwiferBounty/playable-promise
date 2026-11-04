@@ -4,12 +4,7 @@ compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
 [build]
-command = "cp public/games/boss-rush/game.js public/games/boss-rush/game.js.txt"
-
-[[rules]]
-type = "Text"
-globs = ["**/*.html", "**/*.txt"]
-fallthrough = false
+command = "node tools/bundle-static.mjs"
 
 [browser]
 binding = "BROWSER"

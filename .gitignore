@@ -3,4 +3,4 @@ runs/
 *.db
 .env*
 .wrangler/
-public/games/boss-rush/game.js.txt
+worker/static-files.js
