@@ -188,7 +188,7 @@ const routes = [
       const r = await playtest(env, buildUrl, n, { promises: await c.all(`SELECT n, test FROM milestones ORDER BY n`), mode: body.mode === 'script' ? 'script' : 'ai', onEvent: emit });
       const report = await saveRun(c, r, n, build);
       if (r.passed) await c.run(`UPDATE milestones SET status = 'verified', build = ?, run_json = ?, verified_at = CURRENT_TIMESTAMP WHERE n = ?`, build, JSON.stringify(report), n);
-      else await c.run(`UPDATE milestones SET status = 'rejected', build = ? WHERE n = ?`, build, n);
+      else if (!r.inconclusive) await c.run(`UPDATE milestones SET status = 'rejected', build = ? WHERE n = ?`, build, n);
       for (const b of await c.all(`SELECT * FROM backers WHERE status = 'active'`)) await act(c, b, m, report);
       if (r.passed) await payCreator(c, m, r.runId);
       return { run: report, charges: await c.all(`SELECT * FROM charges WHERE milestone = ?`, n), payout: await c.get(`SELECT * FROM payouts WHERE milestone = ?`, n),

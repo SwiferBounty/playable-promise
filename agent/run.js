@@ -145,13 +145,16 @@ export async function runPlaytest(page, { buildUrl, milestone, promises, key, ai
   } else aiError = 'GEMINI_API_KEY not set';
   const passed = ai ? ai.kept && !crashed : (!aiRequired && telemetryPass);
   const tamper = !!(ai && telemetryPass && !ai.kept);
+  // The agent lost every attempt before it could see the milestone: that's its own skill, not proof the build is broken.
+  const inconclusive = !passed && !tamper && !crashed && agent?.outcome === 'game_over';
   const verdict = crashed
     ? `Promise broken: the build crashed (${crashed}). Backers are not charged.`
     : tamper ? `Promise NOT kept. The build reported success, but the screen shows otherwise: ${ai.summary} Backers are not charged.`
+    : inconclusive ? `Not verified yet: my agent lost all ${agent.attempts} attempts before it could see this milestone. That is not proof the build is broken, so nobody is charged and the creator can resubmit.`
     : passed ? `Promise kept: ${ai ? ai.summary : 'all acceptance tests passed (AI judge offline, telemetry only).'}`
     : !ai && aiRequired ? `On hold: the AI judge could not look at this build (${aiError}). Nobody is charged on the build's own word. Submit it again.`
     : `Promise not kept: ${ai ? ai.summary : 'acceptance tests failed.'} Backers are not charged.`;
-  const report = { runId, buildUrl, milestone, promise, mode, passed, tamper, verdict, ai, aiError, telemetry, log, crashed, agent,
+  const report = { runId, buildUrl, milestone, promise, mode, passed, tamper, inconclusive, verdict, ai, aiError, telemetry, log, crashed, agent,
     frames, screenshot: frames.at(-1)?.file, finalState: state, ms: Date.now() - t0 };
   emit({ type: 'verdict', passed, tamper, verdict });
   return report;
