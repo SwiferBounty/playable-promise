@@ -39,7 +39,7 @@ export async function playtest(buildUrl, milestone, { maxSteps = 4000, outDir = 
   const runId = `m${milestone}-${Date.now()}`;
   const dir = `${outDir}/${runId}`;
   mkdirSync(dir, { recursive: true });
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium' });
+  const browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH === '' ? {} : { executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium' }) });
   const page = await browser.newPage({ viewport: { width: 760, height: 320 } });
   const log = [], frames = [];
   const t0 = Date.now();

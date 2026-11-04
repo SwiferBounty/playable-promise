@@ -14,13 +14,14 @@
  .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;background:#2c2940}
  .verified{background:#1f5d4b}.rejected{background:#6b2335}
  #verdict{white-space:pre-wrap}iframe{width:100%;height:300px;border:0;border-radius:8px;background:#000}
- #grid{height:260px}
+ #grid{height:260px}#frames img{width:180px;border-radius:6px;border:1px solid #2c2940}.ok{color:#7ee0c3}.no{color:#ff7a90}
 </style></head><body><main>
-<h1>Boss Rush: pre-order, pay per playable milestone</h1>
-<p class="sub">$30 total, charged $10 at a time, and only after the playtest agent beats that milestone in a real browser. Broken build? Nobody pays.</p>
+<h1>Playable Promise</h1>
+<p class="sub">Your money gets its own agent. Back <b>Boss Rush</b> for $30: your agent holds your PayPal, plays every milestone build itself, judges it from the screen with AI, and pays $10 only when the promise is kept. Miss a deadline and it walks away with your wallet.</p>
+<p class="sub" id="clock"></p>
 
 <div class="card"><b>Back it</b> <span class="sub">(PayPal saves your wallet today; $0 charged now)</span>
- <div class="row" style="margin-top:8px"><input id="name" placeholder="Your name"><input id="email" placeholder="Email (optional)">
+ <div class="row" style="margin-top:8px"><input id="name" placeholder="Your name"><input id="email" placeholder="Email (optional)"><input id="cap" placeholder="Spend cap $ (optional)" size="16">
  <button id="pledge">Pre-order with PayPal</button></div><div id="pmsg" class="sub"></div></div>
 
 <div class="ms" id="ms"></div>
@@ -28,10 +29,13 @@
 <div class="card"><b>Creator: ship a milestone build</b>
  <div class="row" style="margin-top:8px">
   <select id="mn"><option value="1">Milestone 1</option><option value="2">Milestone 2</option><option value="3">Milestone 3</option></select>
-  <select id="build"><option value="m1">build m1</option><option value="m2">build m2</option><option value="m3-broken">build m3 (regression)</option><option value="m3">build m3 (fixed)</option></select>
+  <select id="build"><option value="m1">build m1</option><option value="m2">build m2</option><option value="m3-broken">build m3 (crashes)</option><option value="m3-liar">build m3 (lies about progress)</option><option value="m3">build m3 (fixed)</option></select>
   <button id="submit">Run playtest agent</button></div>
- <p id="verdict" class="sub"></p><iframe id="play" title="Build preview"></iframe></div>
+ <p id="verdict" class="sub"></p><div id="checks"></div><div id="frames" class="row"></div><iframe id="play" title="Build preview"></iframe></div>
 
+<div class="card"><b>What the agents decided</b> <span class="sub">every move, with its reason</span><div id="decisions" class="sub" style="margin-top:8px"></div>
+ <div class="row" style="margin-top:8px"><button id="skip">Skip ahead 30 days</button><span class="sub">see what agents do when a deadline passes</span></div></div>
+<div class="card"><b>Creator payouts</b> <span class="sub">via PayPal Payouts, released only for verified milestones</span><div id="payouts" class="sub"></div></div>
 <div class="card"><b>Backer ledger</b> <span class="sub">every charge points to the playtest run that earned it</span><div id="grid" class="ag-theme-quartz-dark" style="margin-top:8px"></div></div>
 </main>
 <script>
@@ -40,19 +44,23 @@ let grid;
 async function refresh() {
   const s = await (await fetch('/api/state')).json();
   $('ms').innerHTML = s.milestones.map(m => `<div class="card"><span class="pill ${m.status}">${m.status}</span>
-    <h3 style="margin:.4em 0">M${m.n}: ${m.title}</h3><div class="sub">Test: ${m.test}</div><div>$${m.amount} per backer</div></div>`).join('');
+    <h3 style="margin:.4em 0">M${m.n}: ${m.title}</h3><div class="sub">Test: ${m.test}</div><div>$${m.amount} per backer, due ${m.due}</div></div>`).join('');
+  $('clock').textContent = `Today (demo clock): ${s.today}`;
+  const icon = { pay: '💸', hold: '✋', walk: '🚪', join: '🤝' };
+  $('decisions').innerHTML = s.decisions.map(d => `<div>${icon[d.action] || ''} <b>${d.name}'s agent</b>: ${d.reason}</div>`).join('') || 'No decisions yet.';
+  $('payouts').innerHTML = s.payouts.map(p => `<div>M${p.milestone}: $${p.amount} to ${s.creator} (${p.status}${p.batch_id ? ', batch ' + p.batch_id : ''})</div>`).join('') || `None yet. Creator gets ${Math.round(s.share * 100)}% of each verified milestone.`;
   const rows = s.backers.map(b => { const r = { backer: b.name, status: b.status };
     for (const c of s.charges.filter(c => c.backer_id === b.id)) { r['m' + c.milestone] = c.status === 'COMPLETED' ? `$${c.amount} paid` : c.status; r['run' + c.milestone] = c.run_id; }
     return r; });
   const cols = [{ field: 'backer' }, { field: 'status' }, ...[1, 2, 3].map(n => ({ field: 'm' + n, headerName: 'M' + n,
-    cellRenderer: p => p.value ? `${p.value} <a href="/runs/${p.data['run' + n]}.png" target="_blank">evidence</a>` : '—' }))];
+    cellRenderer: p => p.value ? `${p.value} <a href="/runs/${p.data['run' + n]}/" target="_blank">evidence</a>` : '—' }))];
   if (!grid) grid = agGrid.createGrid($('grid'), { columnDefs: cols, rowData: rows, defaultColDef: { flex: 1 } });
   else grid.setGridOption('rowData', rows);
 }
 $('pledge').onclick = async () => {
   $('pmsg').textContent = 'Opening PayPal…';
   const r = await (await fetch('/api/pledge', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: $('name').value, email: $('email').value }) })).json();
+    body: JSON.stringify({ name: $('name').value, email: $('email').value, cap: $('cap').value }) })).json();
   if (r.approveUrl) location.href = r.approveUrl; else $('pmsg').textContent = r.error;
 };
 $('build').onchange = () => $('play').src = '/games/boss-rush/?build=' + $('build').value;
@@ -61,8 +69,15 @@ $('submit').onclick = async () => {
   const r = await (await fetch(`/api/milestones/${$('mn').value}/submit`, { method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ build: $('build').value }) })).json();
   $('verdict').textContent = r.error || [r.run.verdict, ...r.run.log].join('\n') + (r.charges.length ? `\nCharged ${r.charges.filter(c => c.status === 'COMPLETED').length} backer(s).` : '');
+  const run = r.run;
+  if (run) {
+    $('checks').innerHTML = run.ai ? run.ai.checks.map(c => `<div class="${c.met ? 'ok' : 'no'}">${c.met ? '✔' : '✘'} ${c.look_for} <span class="sub">${c.why}</span></div>`).join('')
+      + (run.tamper ? '<div class="no"><b>Tamper alarm:</b> the build said it passed. The screen said no.</div>' : '') : `<div class="sub">${run.aiError ? 'AI judge offline: ' + run.aiError : ''}</div>`;
+    $('frames').innerHTML = run.frames.map(f => `<figure style="margin:0"><img src="/${f.file}"><figcaption class="sub">tick ${f.tick}: ${f.label}</figcaption></figure>`).join('');
+  }
   $('submit').disabled = false; refresh();
 };
 if (location.search.includes('pledged')) $('pmsg').textContent = 'You are in. Nothing charged until Milestone 1 is verified.';
+$('skip').onclick = async () => { await fetch('/api/clock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ days: 30 }) }); refresh(); };
 $('build').onchange(); refresh();
 </script></body></html>

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: playable-promise
+    runtime: docker
+    plan: free
+    envVars:
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PUBLIC_URL
+        sync: false
+      - key: CREATOR_EMAIL
+        sync: false

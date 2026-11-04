@@ -24,6 +24,16 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 app.use('/games', express.static('games'));
+// Evidence page for one playtest run: the promise, the AI's checks, and every frame it judged.
+app.get('/runs/:id/', (req, res) => {
+  const row = get(`SELECT json FROM runs WHERE id = ?`, req.params.id);
+  if (!row) return res.status(404).send('No such run');
+  const r = JSON.parse(row.json), esc = t => String(t ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+  res.send(`<!doctype html><meta charset="utf-8"><title>Run ${esc(r.runId)}</title><body style="font:15px system-ui;background:#0f0e17;color:#e8e6f0;padding:24px">
+<h2>Playtest run ${esc(r.runId)}</h2><p><b>Promise:</b> ${esc(r.promise)}</p><p><b>Verdict:</b> ${esc(r.verdict)}</p>
+${(r.ai?.checks || []).map(c => `<div>${c.met ? '✔' : '✘'} ${esc(c.look_for)}: <i>${esc(c.why)}</i></div>`).join('')}
+<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:16px">${r.frames.map(f => `<figure style="margin:0"><img src="/${esc(f.file)}" width="380"><figcaption>tick ${f.tick}: ${esc(f.label)}</figcaption></figure>`).join('')}</div>`);
+});
 app.use('/runs', express.static('runs'));
 
 app.get('/api/state', (_req, res) => res.json({
